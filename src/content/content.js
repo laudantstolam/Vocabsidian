@@ -211,6 +211,9 @@
     const definition = data.definition || '(no definition found)';
     const sourceHost = data.source || '';
     const date = data.date || new Date().toISOString().slice(0, 10);
+    const ttsLang = data.ttsLang || '';
+    const ttsSupported = data.ttsSupported !== false;
+    const sourceLangLabel = data.sourceLangLabel || data.sourceLang || 'unknown';
 
     tooltip.innerHTML = `
       <div class="vv-word">${escHtml(word)}</div>
@@ -226,7 +229,11 @@
 
     shadow.querySelector('.vv-btn-speak').addEventListener('click', (e) => {
       e.stopPropagation();
-      speak(word, 'ja');
+      const speakResult = speak(word, ttsLang, { sourceLangLabel, supported: ttsSupported });
+      if (!speakResult.ok) {
+        tooltip.innerHTML = `<div class="vv-check" style="color:#ef4444">✕ ${escHtml(speakResult.error)}</div>`;
+        setTimeout(() => showTooltipData(data, x, y), 1400);
+      }
     });
 
     shadow.querySelector('.vv-btn-close').addEventListener('click', (e) => {
@@ -236,7 +243,17 @@
 
     shadow.querySelector('.vv-btn-save').addEventListener('click', (e) => {
       e.stopPropagation();
-      const entry = { word, reading: reading || '-', definition, source: data.source || '', date };
+      const entry = {
+        word,
+        reading: reading || '-',
+        definition,
+        source: data.source || '',
+        date,
+        sourceLang: data.sourceLang || '',
+        sourceLangLabel: data.sourceLangLabel || '',
+        ttsLang: data.ttsLang || '',
+        ttsSupported: data.ttsSupported !== false,
+      };
       console.log('[VV:content] saving entry:', JSON.stringify(entry));
       chrome.runtime.sendMessage({ type: 'SAVE_ENTRY', entry }, (resp) => {
         console.log('[VV:content] save response:', JSON.stringify(resp));
@@ -262,16 +279,22 @@
       .replace(/"/g, '&quot;');
   }
 
-  function speak(text, lang = 'ja') {
+  function speak(text, lang, options = {}) {
     if (!window.speechSynthesis) {
       console.warn('[VV:content] speechSynthesis not available');
-      return;
+      return { ok: false, error: 'Speech synthesis not available in this browser.' };
     }
+
+    if (!options.supported || !lang) {
+      return { ok: false, error: `TTS not supported for ${options.sourceLangLabel || 'this language'}.` };
+    }
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
     utterance.rate = 0.9;
     speechSynthesis.cancel();
     speechSynthesis.speak(utterance);
+    return { ok: true };
   }
 
   // ── Mouseup: detect selection ──────────────────────────────────────────────

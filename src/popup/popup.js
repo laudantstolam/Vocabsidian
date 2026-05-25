@@ -34,13 +34,25 @@ function isEmptyReading(r) {
   return !r || r.trim() === '' || r.trim() === '-';
 }
 
-function speak(text) {
-  if (!window.speechSynthesis) return;
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'ja';
+function speakEntry(entry) {
+  if (!window.speechSynthesis) {
+    setStatus('Speech synthesis not available in this browser.', 'err');
+    return;
+  }
+
+  const lang = entry.ttsLang || '';
+  const label = entry.sourceLangLabel || entry.sourceLang || 'this language';
+  if (entry.ttsSupported === false || !lang) {
+    setStatus(`TTS not supported for ${label}.`, 'err');
+    return;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(entry.word || '');
+  utterance.lang = lang;
   utterance.rate = 0.9;
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
+  setStatus(`Speaking ${label}.`, 'ok');
 }
 
 // ── SVG Icons ─────────────────────────────────────────────
@@ -153,7 +165,7 @@ function buildCardView(entry) {
   speakBtn.className = 'entry-card__btn entry-card__btn--speak';
   speakBtn.title = 'Speak';
   speakBtn.innerHTML = ICON_SPEAK;
-  speakBtn.addEventListener('click', () => speak(entry.word));
+  speakBtn.addEventListener('click', () => speakEntry(entry));
 
   const editBtn = document.createElement('button');
   editBtn.className = 'entry-card__btn entry-card__btn--edit';
@@ -314,6 +326,17 @@ btnSettings.addEventListener('click', () => {
 // ── Connection check ─────────────────────────────────────
 
 const statusEl = document.getElementById('connection-status');
+
+let statusResetTimer = null;
+
+function setStatus(text, className) {
+  statusEl.textContent = text;
+  statusEl.className = `footer__status ${className}`;
+  if (statusResetTimer) clearTimeout(statusResetTimer);
+  statusResetTimer = setTimeout(() => {
+    checkConnection();
+  }, 2000);
+}
 
 async function checkConnection() {
   try {

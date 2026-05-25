@@ -1,5 +1,7 @@
-export async function translate(word, targetLang, deeplApiKey) {
-  console.log('[VV:translate]', word, '→', targetLang, 'key:', deeplApiKey ? 'present' : 'MISSING');
+export async function translate(word, sourceLang, targetLang, deeplApiKey) {
+  console.log('[VV:translate]', sourceLang || 'auto', word, '→', targetLang, 'key:', deeplApiKey ? 'present' : 'MISSING');
+
+  const normalizedSourceLang = sourceLang || undefined;
 
   try {
     if (deeplApiKey) {
@@ -10,7 +12,11 @@ export async function translate(word, targetLang, deeplApiKey) {
           Authorization: `DeepL-Auth-Key ${deeplApiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text: [word], target_lang: targetLang }),
+        body: JSON.stringify({
+          text: [word],
+          target_lang: targetLang,
+          ...(normalizedSourceLang ? { source_lang: normalizedSourceLang } : {}),
+        }),
       });
       console.log('[VV:translate] DeepL response:', res.status);
       if (!res.ok) {
@@ -28,7 +34,8 @@ export async function translate(word, targetLang, deeplApiKey) {
 
   try {
     console.log('[VV:translate] Trying MyMemory...');
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|${encodeURIComponent(targetLang)}`;
+    const source = normalizedSourceLang || 'en';
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${encodeURIComponent(source)}|${encodeURIComponent(targetLang)}`;
     const res = await fetch(url);
     console.log('[VV:translate] MyMemory response:', res.status);
     if (!res.ok) throw new Error(`MyMemory HTTP ${res.status}`);

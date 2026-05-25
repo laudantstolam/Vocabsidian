@@ -4,6 +4,7 @@ import { getSettings, saveSettings, setCachedEntries, getMetadata, setMetadata, 
 import { readVocabNote, appendToNote, rewriteNote, testConnection } from './obsidian-api.js';
 import { translate } from './translation-api.js';
 import { isJapanese, fetchReading } from './japanese-utils.js';
+import { detectLanguageFromTextHeuristic, getLanguageLabel, getPreferredTtsLang, getSourceTranslationLang, isTtsSupportedLanguage, pickDetectedLanguage } from '../shared/language-utils.js';
 
 // ── Install: register context menu ──────────────────────────────────────────
 console.log('[VV:sw] Service worker loaded');
@@ -33,9 +34,14 @@ function hostnameFrom(url) {
 async function translateWord(word, sourceUrl) {
   const settings = await getSettings();
   const japanese = isJapanese(word);
+  const detectedLanguage = await detectSourceLanguage(word);
+  const sourceLang = japanese ? 'ja' : detectedLanguage;
+  const translationSourceLang = getSourceTranslationLang(sourceLang);
+  const ttsLang = getPreferredTtsLang(sourceLang);
+  const ttsSupported = isTtsSupportedLanguage(sourceLang);
 
   const [definition, reading] = await Promise.all([
-    translate(word, settings.targetLang, settings.deeplApiKey),
+    translate(word, translationSourceLang, settings.targetLang, settings.deeplApiKey),
     japanese ? fetchReading(word) : Promise.resolve(''),
   ]);
 
@@ -43,9 +49,35 @@ async function translateWord(word, sourceUrl) {
     word,
     reading: reading || '-',
     definition,
+    sourceLang,
+    sourceLangLabel: getLanguageLabel(sourceLang),
+    ttsLang,
+    ttsSupported,
     source: hostnameFrom(sourceUrl),
     date: todayISO(),
   };
+}
+
+async function detectSourceLanguage(text) {
+  const heuristic = detectLanguageFromTextHeuristic(text);
+
+  if (chrome.i18n?.detectLanguage) {
+    try {
+      const result = await new Promise((resolve) => {
+        chrome.i18n.detectLanguage(text, resolve);
+      });
+      const detected = pickDetectedLanguage(result);
+      if (detected) {
+        console.log('[VV:lang] chrome.i18n.detectLanguage:', detected, JSON.stringify(result));
+        return detected;
+      }
+    } catch (err) {
+      console.warn('[VV:lang] detectLanguage failed, fallback to heuristic:', err?.message || err);
+    }
+  }
+
+  console.log('[VV:lang] heuristic detectLanguage:', heuristic || 'unknown');
+  return heuristic;
 }
 
 async function saveEntry(entry) {
@@ -59,7 +91,14 @@ async function saveEntry(entry) {
   // Store metadata (date, source) separately
   const metadata = await getMetadata();
   const key = getMetadataKey(entry.word, entry.reading);
-  metadata[key] = { date: entry.date, source: entry.source };
+  metadata[key] = {
+    date: entry.date,
+    source: entry.source,
+    sourceLang: entry.sourceLang || '',
+    sourceLangLabel: entry.sourceLangLabel || '',
+    ttsLang: entry.ttsLang || '',
+    ttsSupported: entry.ttsSupported !== false,
+  };
   await setMetadata(metadata);
 }
 
@@ -107,11 +146,22 @@ async function updateEntry({ oldEntry, newEntry }) {
   const metadata = await getMetadata();
   const oldKey = getMetadataKey(oldEntry.word, oldEntry.reading);
   const newKey = getMetadataKey(newEntry.word, newEntry.reading);
-  const oldMeta = metadata[oldKey] || { date: newEntry.date, source: newEntry.source };
+  const oldMeta = metadata[oldKey] || {
+    date: newEntry.date,
+    source: newEntry.source,
+    sourceLang: newEntry.sourceLang || '',
+    sourceLangLabel: newEntry.sourceLangLabel || '',
+    ttsLang: newEntry.ttsLang || '',
+    ttsSupported: newEntry.ttsSupported !== false,
+  };
   delete metadata[oldKey];
   metadata[newKey] = oldMeta; // preserve date, update source if provided
   if (newEntry.source) metadata[newKey].source = newEntry.source;
   if (newEntry.date) metadata[newKey].date = newEntry.date;
+  if (newEntry.sourceLang) metadata[newKey].sourceLang = newEntry.sourceLang;
+  if (newEntry.sourceLangLabel) metadata[newKey].sourceLangLabel = newEntry.sourceLangLabel;
+  if (newEntry.ttsLang) metadata[newKey].ttsLang = newEntry.ttsLang;
+  if (typeof newEntry.ttsSupported === 'boolean') metadata[newKey].ttsSupported = newEntry.ttsSupported;
   await setMetadata(metadata);
 }
 
