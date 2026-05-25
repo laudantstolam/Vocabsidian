@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VocabVault Settings</title>
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>VocabVault Settings</h1>
+
+    <form id="settings-form">
+      <div class="card">
+        <h2>DeepL</h2>
+
+        <div class="form-group">
+          <label for="deepl-api-key">DeepL API Key</label>
+          <div class="input-with-toggle">
+            <input type="password" id="deepl-api-key" name="deeplApiKey" autocomplete="off" />
+            <button type="button" class="toggle-btn" data-target="deepl-api-key" aria-label="Toggle visibility">
+              <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="target-lang">Target Language</label>
+          <select id="target-lang" name="targetLang">
+            <option value="ZH">ZH — Traditional Chinese</option>
+            <option value="EN">EN — English</option>
+            <option value="JA">JA — Japanese</option>
+            <option value="KO">KO — Korean</option>
+            <option value="DE">DE — German</option>
+            <option value="FR">FR — French</option>
+            <option value="ES">ES — Spanish</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Obsidian</h2>
+
+        <div class="form-group">
+          <label for="obsidian-port">Obsidian Port</label>
+          <input type="number" id="obsidian-port" name="obsidianPort" value="27123" />
+        </div>
+
+        <div class="form-group">
+          <label for="obsidian-api-key">Obsidian API Key</label>
+          <div class="input-with-toggle">
+            <input type="password" id="obsidian-api-key" name="obsidianApiKey" autocomplete="off" />
+            <button type="button" class="toggle-btn" data-target="obsidian-api-key" aria-label="Toggle visibility">
+              <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="vault-note-path">Vault Note Path</label>
+          <input type="text" id="vault-note-path" name="vaultNotePath" value="03-學習/語言/英文/vocabbbb.md" />
+        </div>
+
+        <div class="form-group">
+          <button type="button" id="test-connection-btn" class="btn btn-secondary">Test Connection</button>
+          <div id="connection-status" class="status-msg" hidden></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+        <div id="save-status" class="status-msg" hidden></div>
+      </div>
+    </form>
+  </div>
+
+  <script type="module" src="settings.js"></script>
+</body>
+</html>
