@@ -14,7 +14,7 @@ export const DEFAULTS = {
   obsidianApiKey: '',
   vaultNotePath: '',
   deeplApiKey: '',
-  targetLang: 'ZH',
+  targetLang: 'ZH-HANT',
 };
 
 export const SECTION_HEADER = '## VocabVault';

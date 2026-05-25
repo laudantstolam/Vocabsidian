@@ -31,6 +31,10 @@ function hostnameFrom(url) {
   }
 }
 
+function isLatinOnlyText(text) {
+  return /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s'"“”‘’.,!?;:()\-_/&]+$/.test(String(text || '').trim());
+}
+
 async function translateWord(word, sourceUrl) {
   const settings = await getSettings();
   const japanese = isJapanese(word);
@@ -61,6 +65,11 @@ async function translateWord(word, sourceUrl) {
 async function detectSourceLanguage(text) {
   const heuristic = detectLanguageFromTextHeuristic(text);
 
+  if (heuristic === 'en' && isLatinOnlyText(text)) {
+    console.log('[VV:lang] using English heuristic for Latin-only text');
+    return 'en';
+  }
+
   if (chrome.i18n?.detectLanguage) {
     try {
       const result = await new Promise((resolve) => {
@@ -68,6 +77,10 @@ async function detectSourceLanguage(text) {
       });
       const detected = pickDetectedLanguage(result);
       if (detected) {
+        if (heuristic === 'en' && isLatinOnlyText(text) && detected !== 'en') {
+          console.log('[VV:lang] overriding non-English auto-detect with English heuristic:', detected);
+          return 'en';
+        }
         console.log('[VV:lang] chrome.i18n.detectLanguage:', detected, JSON.stringify(result));
         return detected;
       }

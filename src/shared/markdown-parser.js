@@ -16,7 +16,7 @@ function splitRow(line) {
 /**
  * Parse the VocabVault section from raw markdown.
  * @param {string} rawMarkdown
- * @returns {{word: string, reading: string, definition: string, source: string, date: string}[]}
+ * @returns {{word: string, reading: string, definition: string}[]}
  */
 export function parseEntries(rawMarkdown) {
   const sectionStart = rawMarkdown.indexOf(SECTION_HEADER);
@@ -39,7 +39,7 @@ export function parseEntries(rawMarkdown) {
     // Must look like a table row
     if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) continue;
     const cells = splitRow(trimmed);
-    if (cells.length < 5) continue;
+    if (cells.length < 3) continue;
     // Skip header and separator rows
     if (cells[0].toLowerCase() === 'word') continue;
     if (/^[-\s]+$/.test(cells[0])) continue;
@@ -56,7 +56,7 @@ export function parseEntries(rawMarkdown) {
 
 /**
  * Serialize a single entry as a markdown table row.
- * @param {{word: string, reading: string, definition: string, source: string, date: string}} entry
+ * @param {{word: string, reading: string, definition: string}} entry
  * @returns {string}
  */
 export function serializeEntry(entry) {
@@ -65,7 +65,7 @@ export function serializeEntry(entry) {
 
 /**
  * Serialize all entries as a full table (header + rows).
- * @param {{word: string, reading: string, definition: string, source: string, date: string}[]} entries
+ * @param {{word: string, reading: string, definition: string}[]} entries
  * @returns {string}
  */
 export function serializeTable(entries) {
@@ -77,11 +77,12 @@ export function serializeTable(entries) {
  * Rewrite only the VocabVault section in rawMarkdown with the given entries.
  * Preserves everything before the section. If the section doesn't exist, appends it.
  * @param {string} rawMarkdown
- * @param {{word: string, reading: string, definition: string, source: string, date: string}[]} entries
+ * @param {{word: string, reading: string, definition: string}[]} entries
  * @returns {string}
  */
 export function rewriteSection(rawMarkdown, entries) {
-  const newSection = `${SECTION_HEADER}\n${serializeTable(entries)}`;
+  const table = serializeTable(entries);
+  const newSection = `${SECTION_HEADER}\n${table}`;
 
   const sectionStart = rawMarkdown.indexOf(SECTION_HEADER);
   if (sectionStart === -1) {
@@ -94,10 +95,43 @@ export function rewriteSection(rawMarkdown, entries) {
   const afterHeader = rawMarkdown.slice(sectionStart + SECTION_HEADER.length);
 
   // Find next ## section
-  const nextSectionMatch = afterHeader.match(/\n(## )/);
-  const after = nextSectionMatch
-    ? afterHeader.slice(nextSectionMatch.index) // includes the \n before ##
+  const nextSectionMatch = afterHeader.match(/\n## /);
+  const sectionBody = nextSectionMatch
+    ? afterHeader.slice(0, nextSectionMatch.index)
+    : afterHeader;
+  const afterSection = nextSectionMatch
+    ? afterHeader.slice(nextSectionMatch.index)
     : '';
 
-  return before + newSection + '\n' + after;
+  const tableStart = sectionBody.indexOf(TABLE_HEADER);
+  if (tableStart === -1) {
+    const trimmedBody = sectionBody.replace(/^\n+/, '').replace(/\s+$/, '');
+    const bodySuffix = trimmedBody ? `\n${trimmedBody}` : '';
+    return `${before}${SECTION_HEADER}\n${table}${bodySuffix}${afterSection}`;
+  }
+
+  const beforeTable = sectionBody.slice(0, tableStart).replace(/^\n+/, '').replace(/\s+$/, '');
+  const afterTableBody = sectionBody.slice(tableStart + TABLE_HEADER.length);
+  const tableLines = afterTableBody.split('\n');
+  let tableEndOffset = 0;
+
+  for (const line of tableLines) {
+    if (!line.trim()) {
+      tableEndOffset += line.length + 1;
+      continue;
+    }
+
+    const trimmed = line.trim();
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      tableEndOffset += line.length + 1;
+      continue;
+    }
+
+    break;
+  }
+
+  const afterTable = afterTableBody.slice(tableEndOffset).replace(/^\n+/, '');
+  const prefix = beforeTable ? `\n${beforeTable}` : '';
+  const suffix = afterTable ? `\n${afterTable}` : '';
+  return `${before}${SECTION_HEADER}${prefix}\n${table}${suffix}${afterSection}`;
 }

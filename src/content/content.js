@@ -279,18 +279,45 @@
       .replace(/"/g, '&quot;');
   }
 
+  function hasVoiceForLang(lang) {
+    const synth = window.speechSynthesis;
+    if (!synth || !lang) return false;
+    const wanted = String(lang).toLowerCase();
+    const base = wanted.split('-')[0];
+    const voices = synth.getVoices();
+    if (!voices.length) return null;
+    return voices.some((voice) => {
+      const voiceLang = String(voice.lang || '').toLowerCase();
+      return voiceLang === wanted || voiceLang.startsWith(wanted + '-') || voiceLang.split('-')[0] === base;
+    });
+  }
+
+  function inferSpeechLang(text) {
+    const sample = String(text || '').trim();
+    if (!sample) return '';
+    if (/[\u3040-\u309f\u30a0-\u30ff]/.test(sample)) return 'ja-JP';
+    if (/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(sample)) return 'en-US';
+    return '';
+  }
+
   function speak(text, lang, options = {}) {
     if (!window.speechSynthesis) {
       console.warn('[VV:content] speechSynthesis not available');
       return { ok: false, error: 'Speech synthesis not available in this browser.' };
     }
 
-    if (!options.supported || !lang) {
+    const effectiveLang = lang || inferSpeechLang(text);
+    if (!options.supported || !effectiveLang) {
       return { ok: false, error: `TTS not supported for ${options.sourceLangLabel || 'this language'}.` };
     }
 
+    const voiceAvailability = hasVoiceForLang(effectiveLang);
+    if (voiceAvailability === false) {
+      return { ok: false, error: `No installed voice for ${options.sourceLangLabel || lang}.` };
+    }
+
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
+    utterance.lang = effectiveLang;
     utterance.rate = 0.9;
     speechSynthesis.cancel();
     speechSynthesis.speak(utterance);

@@ -40,10 +40,16 @@ function speakEntry(entry) {
     return;
   }
 
-  const lang = entry.ttsLang || '';
+  const lang = entry.ttsLang || inferSpeechLang(entry.word || '');
   const label = entry.sourceLangLabel || entry.sourceLang || 'this language';
   if (entry.ttsSupported === false || !lang) {
     setStatus(`TTS not supported for ${label}.`, 'err');
+    return;
+  }
+
+  const voiceAvailability = hasVoiceForLang(lang);
+  if (voiceAvailability === false) {
+    setStatus(`No installed voice for ${label}.`, 'err');
     return;
   }
 
@@ -53,6 +59,27 @@ function speakEntry(entry) {
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
   setStatus(`Speaking ${label}.`, 'ok');
+}
+
+function hasVoiceForLang(lang) {
+  const synth = window.speechSynthesis;
+  if (!synth || !lang) return false;
+  const wanted = String(lang).toLowerCase();
+  const base = wanted.split('-')[0];
+  const voices = synth.getVoices();
+  if (!voices.length) return null;
+  return voices.some((voice) => {
+    const voiceLang = String(voice.lang || '').toLowerCase();
+    return voiceLang === wanted || voiceLang.startsWith(wanted + '-') || voiceLang.split('-')[0] === base;
+  });
+}
+
+function inferSpeechLang(text) {
+  const sample = String(text || '').trim();
+  if (!sample) return '';
+  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(sample)) return 'ja-JP';
+  if (/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(sample)) return 'en-US';
+  return '';
 }
 
 // ── SVG Icons ─────────────────────────────────────────────

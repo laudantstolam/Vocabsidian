@@ -1,7 +1,19 @@
+function toMyMemoryLanguageCode(languageCode) {
+  switch (String(languageCode || '').toUpperCase()) {
+    case 'ZH-HANT':
+      return 'zh-TW';
+    case 'ZH-HANS':
+      return 'zh-CN';
+    default:
+      return String(languageCode || '').toLowerCase();
+  }
+}
+
 export async function translate(word, sourceLang, targetLang, deeplApiKey) {
   console.log('[VV:translate]', sourceLang || 'auto', word, '→', targetLang, 'key:', deeplApiKey ? 'present' : 'MISSING');
 
   const normalizedSourceLang = sourceLang || undefined;
+  const myMemoryTargetLang = toMyMemoryLanguageCode(targetLang);
 
   try {
     if (deeplApiKey) {
@@ -35,7 +47,7 @@ export async function translate(word, sourceLang, targetLang, deeplApiKey) {
   try {
     console.log('[VV:translate] Trying MyMemory...');
     const source = normalizedSourceLang || 'en';
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${encodeURIComponent(source)}|${encodeURIComponent(targetLang)}`;
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${encodeURIComponent(source)}|${encodeURIComponent(myMemoryTargetLang)}`;
     const res = await fetch(url);
     console.log('[VV:translate] MyMemory response:', res.status);
     if (!res.ok) throw new Error(`MyMemory HTTP ${res.status}`);
