@@ -74,3 +74,4 @@ Chinese translation output follows the configured target variant:
 - [ ] Optimize UI
 - [ ] Flash card review
 - [ ] Speed up
+- [ ] HTTPS API suppport
