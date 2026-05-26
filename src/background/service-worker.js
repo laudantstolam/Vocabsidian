@@ -37,16 +37,15 @@ function isLatinOnlyText(text) {
 
 async function translateWord(word, sourceUrl) {
   const settings = await getSettings();
-  const japanese = isJapanese(word);
   const detectedLanguage = await detectSourceLanguage(word);
-  const sourceLang = japanese ? 'ja' : detectedLanguage;
+  const sourceLang = detectedLanguage || (isJapanese(word) ? 'ja' : '');
   const translationSourceLang = getSourceTranslationLang(sourceLang);
   const ttsLang = getPreferredTtsLang(sourceLang);
   const ttsSupported = isTtsSupportedLanguage(sourceLang);
 
   const [definition, reading] = await Promise.all([
     translate(word, translationSourceLang, settings.targetLang, settings.deeplApiKey),
-    japanese ? fetchReading(word) : Promise.resolve(''),
+    sourceLang === 'ja' ? fetchReading(word) : Promise.resolve(''),
   ]);
 
   return {
@@ -77,10 +76,6 @@ async function detectSourceLanguage(text) {
       });
       const detected = pickDetectedLanguage(result);
       if (detected) {
-        if (heuristic === 'en' && isLatinOnlyText(text) && detected !== 'en') {
-          console.log('[VV:lang] overriding non-English auto-detect with English heuristic:', detected);
-          return 'en';
-        }
         console.log('[VV:lang] chrome.i18n.detectLanguage:', detected, JSON.stringify(result));
         return detected;
       }
@@ -200,7 +195,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           break;
         }
         case MSG.DELETE_ENTRY: {
-          await deleteEntry({ word: msg.word, date: msg.date });
+          await deleteEntry({ word: msg.word, reading: msg.reading });
           sendResponse({ ok: true });
           break;
         }

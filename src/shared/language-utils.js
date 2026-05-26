@@ -7,11 +7,11 @@ const LATIN = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
 const LANGUAGE_PROFILES = {
   ja: { sourceLang: 'JA', ttsLang: 'ja-JP', label: 'Japanese', supportsTts: true },
   en: { sourceLang: 'EN', ttsLang: 'en-US', label: 'English', supportsTts: true },
-  zh: { sourceLang: 'ZH', ttsLang: '', label: 'Chinese', supportsTts: false },
-  ko: { sourceLang: 'KO', ttsLang: '', label: 'Korean', supportsTts: false },
-  de: { sourceLang: 'DE', ttsLang: '', label: 'German', supportsTts: false },
-  fr: { sourceLang: 'FR', ttsLang: '', label: 'French', supportsTts: false },
-  es: { sourceLang: 'ES', ttsLang: '', label: 'Spanish', supportsTts: false },
+  zh: { sourceLang: 'ZH', ttsLang: 'zh-CN', label: 'Chinese', supportsTts: true },
+  ko: { sourceLang: 'KO', ttsLang: 'ko-KR', label: 'Korean', supportsTts: true },
+  de: { sourceLang: 'DE', ttsLang: 'de-DE', label: 'German', supportsTts: true },
+  fr: { sourceLang: 'FR', ttsLang: 'fr-FR', label: 'French', supportsTts: true },
+  es: { sourceLang: 'ES', ttsLang: 'es-ES', label: 'Spanish', supportsTts: true },
 };
 
 export function getLanguageProfile(languageCode) {

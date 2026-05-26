@@ -82,56 +82,20 @@ export function serializeTable(entries) {
  */
 export function rewriteSection(rawMarkdown, entries) {
   const table = serializeTable(entries);
-  const newSection = `${SECTION_HEADER}\n${table}`;
 
   const sectionStart = rawMarkdown.indexOf(SECTION_HEADER);
   if (sectionStart === -1) {
-    // Append to end, ensuring a blank line separator
     const separator = rawMarkdown.endsWith('\n') ? '\n' : '\n\n';
-    return rawMarkdown + separator + newSection + '\n';
+    return rawMarkdown + separator + SECTION_HEADER + '\n' + table + '\n';
   }
 
   const before = rawMarkdown.slice(0, sectionStart);
   const afterHeader = rawMarkdown.slice(sectionStart + SECTION_HEADER.length);
 
-  // Find next ## section
   const nextSectionMatch = afterHeader.match(/\n## /);
-  const sectionBody = nextSectionMatch
-    ? afterHeader.slice(0, nextSectionMatch.index)
-    : afterHeader;
   const afterSection = nextSectionMatch
     ? afterHeader.slice(nextSectionMatch.index)
     : '';
 
-  const tableStart = sectionBody.indexOf(TABLE_HEADER);
-  if (tableStart === -1) {
-    const trimmedBody = sectionBody.replace(/^\n+/, '').replace(/\s+$/, '');
-    const bodySuffix = trimmedBody ? `\n${trimmedBody}` : '';
-    return `${before}${SECTION_HEADER}\n${table}${bodySuffix}${afterSection}`;
-  }
-
-  const beforeTable = sectionBody.slice(0, tableStart).replace(/^\n+/, '').replace(/\s+$/, '');
-  const afterTableBody = sectionBody.slice(tableStart + TABLE_HEADER.length);
-  const tableLines = afterTableBody.split('\n');
-  let tableEndOffset = 0;
-
-  for (const line of tableLines) {
-    if (!line.trim()) {
-      tableEndOffset += line.length + 1;
-      continue;
-    }
-
-    const trimmed = line.trim();
-    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
-      tableEndOffset += line.length + 1;
-      continue;
-    }
-
-    break;
-  }
-
-  const afterTable = afterTableBody.slice(tableEndOffset).replace(/^\n+/, '');
-  const prefix = beforeTable ? `\n${beforeTable}` : '';
-  const suffix = afterTable ? `\n${afterTable}` : '';
-  return `${before}${SECTION_HEADER}${prefix}\n${table}${suffix}${afterSection}`;
+  return before + SECTION_HEADER + '\n' + table + '\n' + afterSection;
 }

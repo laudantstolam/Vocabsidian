@@ -207,7 +207,8 @@
 
   function showTooltipData(data, x, y) {
     const word = data.word || '';
-    const reading = data.reading || '';
+    const rawReading = data.reading || '';
+    const reading = (!rawReading || rawReading.trim() === '-') ? '' : rawReading;
     const definition = data.definition || '(no definition found)';
     const sourceHost = data.source || '';
     const date = data.date || new Date().toISOString().slice(0, 10);
