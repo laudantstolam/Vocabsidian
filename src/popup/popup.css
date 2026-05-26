@@ -160,15 +160,21 @@ body {
 }
 
 .entry-card__word {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: #ffffff;
+  line-height: 1.8;
 }
 
-.entry-card__reading {
-  font-size: 14px;
-  font-style: italic;
+.entry-card__word ruby {
+  ruby-align: center;
+}
+
+.entry-card__word rt {
+  font-size: 10px;
+  font-weight: 400;
   color: #94a3b8;
+  letter-spacing: 0.5px;
 }
 
 .entry-card__definition {

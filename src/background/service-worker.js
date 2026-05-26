@@ -3,7 +3,7 @@ import { parseEntries, serializeEntry, rewriteSection } from '../shared/markdown
 import { getSettings, saveSettings, setCachedEntries, getMetadata, setMetadata, getMetadataKey } from './storage.js';
 import { readVocabNote, appendToNote, rewriteNote, testConnection } from './obsidian-api.js';
 import { translate } from './translation-api.js';
-import { isJapanese, fetchReading } from './japanese-utils.js';
+import { isJapanese, fetchReadingPairs } from './japanese-utils.js';
 import { detectLanguageFromTextHeuristic, getLanguageLabel, getPreferredTtsLang, getSourceTranslationLang, isTtsSupportedLanguage, pickDetectedLanguage } from '../shared/language-utils.js';
 
 // ── Install: register context menu ──────────────────────────────────────────
@@ -38,19 +38,27 @@ function isLatinOnlyText(text) {
 async function translateWord(word, sourceUrl) {
   const settings = await getSettings();
   const detectedLanguage = await detectSourceLanguage(word);
-  const sourceLang = detectedLanguage || (isJapanese(word) ? 'ja' : '');
+  let sourceLang = detectedLanguage;
+  if (isJapanese(word) && (!sourceLang || sourceLang === 'zh')) {
+    sourceLang = 'ja';
+  } else if (!sourceLang) {
+    sourceLang = '';
+  }
   const translationSourceLang = getSourceTranslationLang(sourceLang);
   const ttsLang = getPreferredTtsLang(sourceLang);
   const ttsSupported = isTtsSupportedLanguage(sourceLang);
 
-  const [definition, reading] = await Promise.all([
+  const [definition, readingPairs] = await Promise.all([
     translate(word, translationSourceLang, settings.targetLang, settings.deeplApiKey),
-    sourceLang === 'ja' ? fetchReading(word) : Promise.resolve(''),
+    sourceLang === 'ja' ? fetchReadingPairs(word) : Promise.resolve([]),
   ]);
+
+  const flatReading = readingPairs.map(p => p.reading || p.text).join('') || '-';
 
   return {
     word,
-    reading: reading || '-',
+    reading: flatReading,
+    readingPairs: readingPairs.length ? readingPairs : null,
     definition,
     sourceLang,
     sourceLangLabel: getLanguageLabel(sourceLang),
@@ -106,6 +114,7 @@ async function saveEntry(entry) {
     sourceLangLabel: entry.sourceLangLabel || '',
     ttsLang: entry.ttsLang || '',
     ttsSupported: entry.ttsSupported !== false,
+    readingPairs: entry.readingPairs || null,
   };
   await setMetadata(metadata);
 }

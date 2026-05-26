@@ -61,15 +61,19 @@
 
     .vv-word {
       font-weight: 700;
-      font-size: 16px;
+      font-size: 18px;
       color: #e0e0e0;
-      margin-bottom: 2px;
-    }
-    .vv-reading {
-      font-style: italic;
-      color: #94a3b8;
       margin-bottom: 6px;
-      font-size: 13px;
+      line-height: 1.8;
+    }
+    .vv-word ruby {
+      ruby-align: center;
+    }
+    .vv-word rt {
+      font-size: 10px;
+      font-weight: 400;
+      color: #94a3b8;
+      letter-spacing: 0.5px;
     }
     .vv-definition {
       color: #e0e0e0;
@@ -216,9 +220,11 @@
     const ttsSupported = data.ttsSupported !== false;
     const sourceLangLabel = data.sourceLangLabel || data.sourceLang || 'unknown';
 
+    const wordHtml = data.readingPairs
+      ? buildFuriganaFromPairs(data.readingPairs)
+      : (reading ? buildFuriganaHtml(word, reading) : escHtml(word));
     tooltip.innerHTML = `
-      <div class="vv-word">${escHtml(word)}</div>
-      ${reading ? `<div class="vv-reading">${escHtml(reading)}</div>` : ''}
+      <div class="vv-word">${wordHtml}</div>
       <div class="vv-definition">${escHtml(definition)}</div>
       <div class="vv-meta">${escHtml(date)}</div>
       <div class="vv-actions">
@@ -278,6 +284,71 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  const KANJI_RE = /[一-龯㐀-䶿]/;
+
+  function rubyTag(kanji, rt) {
+    return `<ruby>${escHtml(kanji)}<rp>(</rp><rt>${escHtml(rt)}</rt><rp>)</rp></ruby>`;
+  }
+
+  function buildFuriganaFromPairs(pairs) {
+    return pairs.map(p => {
+      if (!p.reading) return escHtml(p.text);
+      return rubyTag(p.text, p.reading);
+    }).join('');
+  }
+
+  function buildFuriganaHtml(word, reading) {
+    if (!reading || !word) return escHtml(word);
+
+    const segments = [];
+    let i = 0;
+    while (i < word.length) {
+      if (KANJI_RE.test(word[i])) {
+        let j = i;
+        while (j < word.length && KANJI_RE.test(word[j])) j++;
+        segments.push({ type: 'kanji', text: word.slice(i, j) });
+        i = j;
+      } else {
+        let j = i;
+        while (j < word.length && !KANJI_RE.test(word[j])) j++;
+        segments.push({ type: 'kana', text: word.slice(i, j) });
+        i = j;
+      }
+    }
+
+    let remainingReading = reading;
+    const resolved = [];
+    for (let s = 0; s < segments.length; s++) {
+      const seg = segments[s];
+      if (seg.type === 'kana') {
+        const idx = remainingReading.indexOf(seg.text);
+        if (idx >= 0) {
+          if (idx > 0 && resolved.length > 0 && resolved[resolved.length - 1].type === 'kanji') {
+            resolved[resolved.length - 1].reading = remainingReading.slice(0, idx);
+          }
+          remainingReading = remainingReading.slice(idx + seg.text.length);
+        }
+        resolved.push({ type: 'kana', text: seg.text });
+      } else {
+        resolved.push({ type: 'kanji', text: seg.text, reading: '' });
+      }
+    }
+    if (remainingReading) {
+      for (let r = resolved.length - 1; r >= 0; r--) {
+        if (resolved[r].type === 'kanji' && !resolved[r].reading) {
+          resolved[r].reading = remainingReading;
+          break;
+        }
+      }
+    }
+
+    return resolved.map(seg => {
+      if (seg.type === 'kana') return escHtml(seg.text);
+      if (!seg.reading) return escHtml(seg.text);
+      return rubyTag(seg.text, seg.reading);
+    }).join('');
   }
 
   function hasVoiceForLang(lang) {

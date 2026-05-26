@@ -34,6 +34,79 @@ function isEmptyReading(r) {
   return !r || r.trim() === '' || r.trim() === '-';
 }
 
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+const KANJI_RE = /[一-龯㐀-䶿]/;
+
+function rubyTag(kanji, rt) {
+  return `<ruby>${escHtml(kanji)}<rp>(</rp><rt>${escHtml(rt)}</rt><rp>)</rp></ruby>`;
+}
+
+function buildFuriganaFromPairs(pairs) {
+  return pairs.map(p => {
+    if (!p.reading) return escHtml(p.text);
+    return rubyTag(p.text, p.reading);
+  }).join('');
+}
+
+function buildFuriganaHtml(word, reading) {
+  if (!reading || !word) return escHtml(word);
+
+  const segments = [];
+  let i = 0;
+  while (i < word.length) {
+    if (KANJI_RE.test(word[i])) {
+      let j = i;
+      while (j < word.length && KANJI_RE.test(word[j])) j++;
+      segments.push({ type: 'kanji', text: word.slice(i, j) });
+      i = j;
+    } else {
+      let j = i;
+      while (j < word.length && !KANJI_RE.test(word[j])) j++;
+      segments.push({ type: 'kana', text: word.slice(i, j) });
+      i = j;
+    }
+  }
+
+  let remainingReading = reading;
+  const resolved = [];
+  for (let s = 0; s < segments.length; s++) {
+    const seg = segments[s];
+    if (seg.type === 'kana') {
+      const idx = remainingReading.indexOf(seg.text);
+      if (idx >= 0) {
+        if (idx > 0 && resolved.length > 0 && resolved[resolved.length - 1].type === 'kanji') {
+          resolved[resolved.length - 1].reading = remainingReading.slice(0, idx);
+        }
+        remainingReading = remainingReading.slice(idx + seg.text.length);
+      }
+      resolved.push({ type: 'kana', text: seg.text });
+    } else {
+      resolved.push({ type: 'kanji', text: seg.text, reading: '' });
+    }
+  }
+  if (remainingReading) {
+    for (let r = resolved.length - 1; r >= 0; r--) {
+      if (resolved[r].type === 'kanji' && !resolved[r].reading) {
+        resolved[r].reading = remainingReading;
+        break;
+      }
+    }
+  }
+
+  return resolved.map(seg => {
+    if (seg.type === 'kana') return escHtml(seg.text);
+    if (!seg.reading) return escHtml(seg.text);
+    return rubyTag(seg.text, seg.reading);
+  }).join('');
+}
+
 function speakEntry(entry) {
   if (!window.speechSynthesis) {
     setStatus('Speech synthesis not available in this browser.', 'err');
@@ -158,15 +231,14 @@ function buildCardView(entry) {
 
   const wordEl = document.createElement('span');
   wordEl.className = 'entry-card__word';
-  wordEl.textContent = entry.word || '';
-  top.appendChild(wordEl);
-
-  if (!isEmptyReading(entry.reading)) {
-    const readingEl = document.createElement('span');
-    readingEl.className = 'entry-card__reading';
-    readingEl.textContent = entry.reading;
-    top.appendChild(readingEl);
+  if (entry.readingPairs) {
+    wordEl.innerHTML = buildFuriganaFromPairs(entry.readingPairs);
+  } else if (!isEmptyReading(entry.reading)) {
+    wordEl.innerHTML = buildFuriganaHtml(entry.word || '', entry.reading);
+  } else {
+    wordEl.textContent = entry.word || '';
   }
+  top.appendChild(wordEl);
 
   frag.appendChild(top);
 
